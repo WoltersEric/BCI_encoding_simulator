@@ -100,8 +100,8 @@ class VLECHuffmanCoding(HuffmanCoding):
             self.reverse_mapping[current_code] = root.char
             return
 
-        self.make_codes_helper(root.left, current_code + "01")
-        self.make_codes_helper(root.right, current_code + "10")
+        self.make_codes_helper(root.left, current_code + "010")
+        self.make_codes_helper(root.right, current_code + "101")
 
     def make_VLEC_codes(self):
         root = heapq.heappop(self.heap)

@@ -11,7 +11,7 @@ Test text -> code words -> noise added -> faulty words replaced by backspace and
 #TODO: what happens between prob/char2indice missmatch in language model
 
 class PerformanceEstimation:
-    def __init__(self, path, coding_algorithm, noise=[0.6, 0.68]):
+    def __init__(self, path, coding_algorithm, noise=[0.6, 0.68], iterations=1):
         self.path = path
         self.coding_algorithm = coding_algorithm
         self.noise = noise   # , 0.99]  # [x] or [fp, fn]
@@ -23,10 +23,12 @@ class PerformanceEstimation:
         self.ix_to_char = {i: ch for i, ch in enumerate(self.chars)}
         self.codes_to_freq = None
         self.coding = None
+        self._get_code_algorithm()
         self.RNN = Rnn()
         self.initial_freq = self.determine_frequencies(None)
         self.breakout = False
         self.prior = []
+        self.iterations = iterations
 
     def _get_test_data(self, path):
         with open(self.path, 'r+') as file:
@@ -36,13 +38,7 @@ class PerformanceEstimation:
 
         return test_text_data
 
-    def determine_frequencies(self, prior):
-        prob = self.RNN.predict_letter_prob(prior)
-        prob = {k: prob[k] for k in prob.keys() if k in self.chars}
-        prob.update({"bck": 0.1})
-        return prob
-
-    def init_sim(self):
+    def _get_code_algorithm(self):
         if self.coding_algorithm == "Huffman":
             self.coding = HuffmanCoding()
         elif self.coding_algorithm == "RowColumn":
@@ -53,6 +49,14 @@ class PerformanceEstimation:
             self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
         else:
             raise TypeError("Unknown coding algorithm")
+
+    def determine_frequencies(self, prior):
+        prob = self.RNN.predict_letter_prob(prior)
+        prob = {k: prob[k] for k in prob.keys() if k in self.chars}
+        prob.update({"bck": 0.1})
+        return prob
+
+    def init_sim(self):
         self.codes = self.coding.create_code(self.initial_freq)
         self.codes_to_freq = {self.codes[k]: self.initial_freq[k] for k in self.codes.keys()}
         self.prior = []
@@ -101,7 +105,6 @@ class PerformanceEstimation:
             return noisy_letter
         else:
             while len(temp_letter) <= len(max_len):
-                match_values = []
                 if len(temp_letter) < len(letter):
                     bit = noisy_letter[count]
                     count += 1
@@ -117,28 +120,28 @@ class PerformanceEstimation:
                         if test:
                             temp_letter = matches[0]
                             return [int(i) for i in temp_letter]
-                        test = [match for match in match_values if match == 1]
+                        test = [match for match, matchv in zip(matches, match_values) if matchv == 1]
                         if test:
                             if len(test) == 1:
-                                temp_letter = matches[0]
+                                temp_letter = test[0]
                                 return [int(i) for i in temp_letter]
                             else:
-                                values = [self.codes_to_freq[match] for match in matches]
-                                temp_letter = matches[np.argmax(np.array(values))]
+                                values = [self.codes_to_freq[match] for match in test]
+                                temp_letter = test[np.argmax(np.array(values))]
                                 return [int(i) for i in temp_letter]
-                        test = [match for match in match_values if match > 1]
+                        test = [match for match, matchv in zip(matches, match_values) if matchv == 2]
+                        if test:
+                            if len(test) == 1:
+                                temp_letter = test[0]
+                                return [int(i) for i in temp_letter]
+                            else:
+                                values = [self.codes_to_freq[match] for match in test]
+                                temp_letter = test[np.argmax(np.array(values))]
+                                return [int(i) for i in temp_letter]
+                        test = [match for match in match_values if match > 2]
                         if test:
                             temp_letter = matches[0]
                             return [int(i) for i in temp_letter]
-
-                    # if match_values:
-                    #     if len(match_values) == 1:
-                    #         temp_letter = match_values[0]
-                    #         return [int(i) for i in temp_letter]
-                    #     else:
-                    #         values = [self.codes_to_freq[match] for match in matches]
-                    #         temp_letter = matches[np.argmax(np.array(values))]
-                    #         return [int(i) for i in temp_letter]
             return [int(i) for i in temp_letter]
 
     def random_choice(self, bit):
@@ -168,9 +171,6 @@ class PerformanceEstimation:
             noisy_new_text = self.add_noise(new_text)
             for letter, noisy_letter in zip(new_text, noisy_new_text):
                 if self.coding_algorithm == "VLEC":
-                    if len(letter) != len(noisy_letter):
-                        print('wow')
-                        pass
                     noisy_letter = self.determine_VLEC_letter(letter, noisy_letter)
                 else:
                     noisy_letter = self.determine_faulty_letter(letter, noisy_letter)
@@ -201,40 +201,47 @@ class PerformanceEstimation:
 
     def simulate(self):
         self.breakout = False
-        self.init_sim()
-        best_num_of_decisions = 0
-        num_of_decisions = 0
-        for character in self._test_text_data:
-            if character not in self.initial_freq.keys():
-                continue
-            else:
-                encoded_letter = self.create_coded_letter(character)
-                noisy_coded_letter = self.add_noise(encoded_letter)[0]
-                best_num_of_decisions += len(encoded_letter[0])
-                if self.breakout == False:
-                    if self.coding_algorithm == "VLEC":
-                        noisy_coded_letter = self.determine_VLEC_letter(encoded_letter[0], noisy_coded_letter)
-                    else:
-                        noisy_coded_letter = self.determine_faulty_letter(encoded_letter[0], noisy_coded_letter)
-                    if encoded_letter[0] != noisy_coded_letter:
-                        num_of_decisions += len(noisy_coded_letter)
-                        num_of_decisions += self.determine_error_correction(encoded_letter[0])
-                    else:
-                        num_of_decisions += len(encoded_letter)
+        optimal_result = []
+        real_result = []
+        for i in range(self.iterations):
+            self.init_sim()
+            best_num_of_decisions = 0
+            num_of_decisions = 0
+            for character in self._test_text_data:
+                if character not in self.initial_freq.keys():
+                    continue
                 else:
-                    return [best_num_of_decisions, 0]
-        return [best_num_of_decisions, num_of_decisions]
+                    encoded_letter = self.create_coded_letter(character)
+                    noisy_coded_letter = self.add_noise(encoded_letter)[0]
+                    best_num_of_decisions += len(encoded_letter[0])
+                    if self.breakout == False:
+                        if self.coding_algorithm == "VLEC":
+                            noisy_coded_letter = self.determine_VLEC_letter(encoded_letter[0], noisy_coded_letter)
+                        else:
+                            noisy_coded_letter = self.determine_faulty_letter(encoded_letter[0], noisy_coded_letter)
+                        if encoded_letter[0] != noisy_coded_letter:
+                            num_of_decisions += len(noisy_coded_letter)
+                            num_of_decisions += self.determine_error_correction(encoded_letter[0])
+                        else:
+                            num_of_decisions += len(encoded_letter)
+                    else:
+                        num_of_decisions = 0
+                        pass
+            if num_of_decisions != 0:
+                optimal_result.append(best_num_of_decisions)
+                real_result.append(num_of_decisions)
+        if optimal_result:
+            real_result = [value for value in real_result if value != 0]
+            average = sum(real_result) / len(real_result)
+        else:
+            optimal_result = [0]
+            average = 0
+        return [max(optimal_result), average]
 
 
 def visualize_results():
     interval = 2.6
     result_optimal = {
-        'RowColumn': [],
-        'Huffman': [],
-        'VLEC': [],
-        # 'Weighted': [],
-    }
-    temp = {
         'RowColumn': [],
         'Huffman': [],
         'VLEC': [],
@@ -248,29 +255,15 @@ def visualize_results():
     }
     x_axis = list(np.arange(0.75, 0.99, 0.025))
     algorithms = ["Huffman", "RowColumn", "VLEC"]
-    for i in x_axis:
-        temp['Huffman'] = []
-        temp['RowColumn'] = []
-        temp['VLEC'] = []
-        # temp['Huffman'] = []
-        for j in range(5):
-            for algor in algorithms:
-                Algorithm = PerformanceEstimation("text.txt", algor, noise=[i])
-                tmp = Algorithm.simulate()
-                if tmp[1] == 0:
-                    pass
-                else:
-                    temp[algor].append(tmp[1])
+    # algorithms = ["VLEC"]
+    for count, i in enumerate(x_axis):
         for algor in algorithms:
-            average = 0
-            if len(temp[algor]) > 0:
-                average = sum(temp[algor]) / len(temp[algor])
-            result_actual[algor].append(average * interval / 60)
-        print("stap klaar")
-    for algor in algorithms:
-        Algorithm = PerformanceEstimation("text.txt", algor, noise=[0.9999])
-        tmp = Algorithm.simulate()
-        result_optimal[algor].append(tmp[0] * interval / 60)
+            Algorithm = PerformanceEstimation("text.txt", algor, noise=[i], iterations=50)
+            tmp = Algorithm.simulate()
+            result_actual[algor].append(tmp[1] * interval / 60)
+            if count == len(x_axis) - 1:
+                result_optimal[algor].append(tmp[0] * interval / 60)
+        print('stap{0}/{1} klaar'.format(count+1, len(x_axis)))
     return [x_axis, result_optimal, result_actual]
 
 def plot(results):
