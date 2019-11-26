@@ -132,13 +132,15 @@ class WeightedHuffmanCoding(HuffmanCoding):
             node2 = HeapNode("leaf", node.freq + self.right, count=len(frequency)-i)
             heapq.heappush(self.min_que, node1)
             heapq.heappush(self.min_que, node2)
-        self.min_que.sort(key=operator.attrgetter('freq', 'count'), reverse=False)
+        self.min_que.sort(key=operator.attrgetter('count'), reverse=True)
+        self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
         for i in range(len(frequency)):
             # test.append(self.min_que[i])
-            node = heapq.heappop(self.min_que)
+            node3 = self.min_que[i]
             key = list(frequency)[i]
-            tot = HeapNode(key, node.count, frequency[key], node.freq)
+            tot = HeapNode(key, node3.count, frequency[key], node3.freq)
             heapq.heappush(self.heap, tot)
+        self.heap.sort(key=operator.attrgetter('freq'), reverse=False)
 
     def merge_min_nodes(self):
         while (len(self.heap) > 1):

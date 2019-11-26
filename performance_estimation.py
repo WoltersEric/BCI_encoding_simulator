@@ -45,8 +45,8 @@ class PerformanceEstimation:
             self.coding = RowColumn()
         elif self.coding_algorithm == "VLEC":
             self.coding = VLECHuffmanCoding()
-        elif self.coding_algorithm == "Weight":
-            self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
+        elif self.coding_algorithm == "Weighted":
+            self.coding = WeightedHuffmanCoding(1-self.noise[0], 1-self.noise[1])
         else:
             raise TypeError("Unknown coding algorithm")
 
@@ -156,7 +156,7 @@ class PerformanceEstimation:
         noisy_coded_text = []
         for character in encoded_text:
             if len(self.noise) > 1:
-                noise_vector = [bit*self.random_choice(bit) for bit in character]
+                noise_vector = [self.random_choice(bit) for bit in character]
             else:
                 noise_vector = np.random.choice([0, 1], size=len(character), p=[self.noise[0], 1-self.noise[0]]).tolist()
             noisy_coded_text.append((np.array(character) ^ np.array(noise_vector)).tolist())
@@ -199,8 +199,9 @@ class PerformanceEstimation:
                             del noisy_new_text[0]
         return num_of_decisions
 
-    def simulate(self):
+    def simulate(self, noise):
         self.breakout = False
+        self.noise = noise
         optimal_result = []
         real_result = []
         for i in range(self.iterations):
@@ -223,8 +224,8 @@ class PerformanceEstimation:
                             num_of_decisions += len(noisy_coded_letter)
                             num_of_decisions += self.determine_error_correction(encoded_letter[0])
                         else:
-                            num_of_decisions += len(encoded_letter)
-                    else:
+                            num_of_decisions += len(encoded_letter[0])
+                    elif self.breakout == True:
                         num_of_decisions = 0
                         pass
             if num_of_decisions != 0:
@@ -245,25 +246,26 @@ def visualize_results():
         'RowColumn': [],
         'Huffman': [],
         'VLEC': [],
-        # 'Weighted': [],
+        'Weighted': [],
     }
     result_actual = {
         'RowColumn': [],
         'Huffman': [],
         'VLEC': [],
-        # 'Weighted': [],
+        'Weighted': [],
     }
     x_axis = list(np.arange(0.75, 0.99, 0.025))
     algorithms = ["Huffman", "RowColumn", "VLEC"]
+        # , "Weighted"]
     # algorithms = ["VLEC"]
-    for count, i in enumerate(x_axis):
-        for algor in algorithms:
-            Algorithm = PerformanceEstimation("text.txt", algor, noise=[i], iterations=50)
-            tmp = Algorithm.simulate()
+    for algor in algorithms:
+        Algorithm = PerformanceEstimation("text.txt", algor, iterations=20)
+        for count, i in enumerate(x_axis):
+            tmp = Algorithm.simulate(noise=[i, 0.85])
             result_actual[algor].append(tmp[1] * interval / 60)
             if count == len(x_axis) - 1:
                 result_optimal[algor].append(tmp[0] * interval / 60)
-        print('stap{0}/{1} klaar'.format(count+1, len(x_axis)))
+            print('stap {0}/{1} van {2} klaar'.format(count+1, len(x_axis), algor))
     return [x_axis, result_optimal, result_actual]
 
 def plot(results):
@@ -288,9 +290,12 @@ def plot(results):
     y_axisv =np.array(result_actual['VLEC'])
     y_axisv[y_axisv == 0] = 'nan'
     ax.plot(x_axis, y_axisv, color='black', alpha=0.7, label="VLEC paradigm")
-    # horiz_line_data = np.array([result_optimal['Weighted'] for i in x_axis])
-    # ax.plot(x_axis, horiz_line_data, color='red', alpha=0.4)
-    # ax.plot(x_axis, result_actual['Weighted'], color='green', alpha=0.7, label="Weighted clicks")
+
+    # horiz_line_datav = np.array([result_optimal['Weighted'] for i in x_axis])
+    # ax.plot(x_axis, horiz_line_datav, color='green', alpha=0.4)
+    # y_axisv =np.array(result_actual['Weighted'])
+    # y_axisv[y_axisv == 0] = 'nan'
+    # ax.plot(x_axis, y_axisv, color='green', alpha=0.7, label="Weighted paradigm")
     ax.set_xlabel('Click accuracy')
     ax.set_ylabel('Time in minutes')
     ax.set_title('Performance of different spelling paradigms')
