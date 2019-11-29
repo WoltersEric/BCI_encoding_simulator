@@ -3,22 +3,6 @@ import numpy as np
 import copy
 import operator
 
-"""
-frequency input is dict frequency {a} = x
-"""
-# frequency = {
-#     "A": 40,
-#     "B": 20,
-#     "C": 10,
-#     "D": 6,
-#     "E": 5,
-#     "F": 5,
-#     "G": 4,
-#     "H": 3,
-#     "I": 3,
-#     "J": 3,
-#     "K": 1}
-
 class HeapNode:
     def __init__(self, char, freq, cost=None, count=None):
         self.char = char
@@ -124,12 +108,13 @@ class WeightedHuffmanCoding(HuffmanCoding):
         super().__init__()
 
     def make_min_que(self, frequency):
-        node = HeapNode("leaf", 0, count=0)
+        node = HeapNode("leaf", 0, count=len(frequency))
         heapq.heappush(self.min_que, node)
         for i in range(len(frequency)-1):
             node = heapq.heappop(self.min_que)
-            node1 = HeapNode("leaf", node.freq + self.left, count=len(frequency)-i)
-            node2 = HeapNode("leaf", node.freq + self.right, count=len(frequency)-i)
+            counter = node.count - 1
+            node1 = HeapNode("leaf", node.freq + self.left, count=counter)
+            node2 = HeapNode("leaf", node.freq + self.right, count=counter)
             heapq.heappush(self.min_que, node1)
             heapq.heappush(self.min_que, node2)
         self.min_que.sort(key=operator.attrgetter('count'), reverse=True)
@@ -140,15 +125,32 @@ class WeightedHuffmanCoding(HuffmanCoding):
             key = list(frequency)[i]
             tot = HeapNode(key, node3.count, frequency[key], node3.freq)
             heapq.heappush(self.heap, tot)
-        self.heap.sort(key=operator.attrgetter('freq'), reverse=False)
+        # self.heap.sort(key=operator.attrgetter('count'), reverse=True)
+        # self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
 
     def merge_min_nodes(self):
         while (len(self.heap) > 1):
             node1 = heapq.heappop(self.heap)
             node2 = heapq.heappop(self.heap)
+            if node1.freq != node2.freq:
+                print('wowowow dit is niet goed')
+            if node1.count == node2.count:
+                node3 = heapq.heappop(self.heap)
+                node1, node3 = node3, node1
+                heapq.heappush(self.heap, node3)
+            elif abs(node1.count-node2.count) != abs(self.left - self.right):
+                if node1.count > node2.count:
+                    node3 = heapq.heappop(self.heap)
+                    node1, node3 = node3, node1
+                    heapq.heappush(self.heap, node3)
+                else:
+                    node3 = heapq.heappop(self.heap)
+                    node2, node3 = node3, node2
+                    heapq.heappush(self.heap, node3)
+            if (self.left < self.right) and (node1.count > node2.count):
+                node1, node2 = node2, node1
             freq = node1.freq + 1
-            countt = (node1.count - self.left + node2.count - self.right)
-            merged = HeapNode(None, freq, node1.cost + node2.cost, countt)
+            merged = HeapNode(None, freq, node1.cost + node2.cost, (node1.count - self.left))
 
             merged.left = node1
             merged.right = node2
@@ -200,12 +202,29 @@ class RowColumn():
                 if count == length:
                     return self.codes
             q += 1
-
-# h = HuffmanCoding()
-# codes = h.create_code(frequency)
-# bla = WeightedHuffmanCoding(3, 1)
-# weighted_codes = bla.create_code(frequency)
-# vlec = VLECHuffmanCoding()
-# vlec_codes = vlec.create_code(frequency)
-# test = RowColumn()
-# codes2 = test.create_code(frequency)
+if __name__ == "__main__":
+    frequency = {
+        "A": 55,
+        "B": 32,
+        "C": 21,
+        "D": 12,
+        "E": 17,
+        "F": 23,
+        "G": 26,
+        "H": 18,
+        "I": 25,
+        "J": 9,
+        "K": 14,
+        "L": 7,
+        "M": 45,
+        "N": 47,
+        "O": 8,
+    }
+    h = HuffmanCoding()
+    codes = h.create_code(frequency)
+    bla = WeightedHuffmanCoding(1, 3)
+    weighted_codes = bla.create_code(frequency)
+    # vlec = VLECHuffmanCoding()
+    # vlec_codes = vlec.create_code(frequency)
+    # test = RowColumn()
+    # codes2 = test.create_code(frequency)
