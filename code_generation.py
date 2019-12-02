@@ -120,26 +120,21 @@ class WeightedHuffmanCoding(HuffmanCoding):
         self.min_que.sort(key=operator.attrgetter('count'), reverse=True)
         self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
         for i in range(len(frequency)):
-            # test.append(self.min_que[i])
             node3 = self.min_que[i]
             key = list(frequency)[i]
             tot = HeapNode(key, node3.count, frequency[key], node3.freq)
             heapq.heappush(self.heap, tot)
-        # self.heap.sort(key=operator.attrgetter('count'), reverse=True)
-        # self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
 
     def merge_min_nodes(self):
         while (len(self.heap) > 1):
             node1 = heapq.heappop(self.heap)
             node2 = heapq.heappop(self.heap)
-            if node1.freq != node2.freq:
-                print('wowowow dit is niet goed')
-            if node1.count == node2.count:
+            if (round(node1.count, 5) == round(node2.count, 5)) and (self.left-self.right != 0):
                 node3 = heapq.heappop(self.heap)
                 node1, node3 = node3, node1
                 heapq.heappush(self.heap, node3)
-            elif abs(node1.count-node2.count) != abs(self.left - self.right):
-                if node1.count > node2.count:
+            elif round(abs(node1.count-node2.count), 5) != round(abs(self.left - self.right), 5):
+                if node1.count > node2.count is self.left < self.right:
                     node3 = heapq.heappop(self.heap)
                     node1, node3 = node3, node1
                     heapq.heappush(self.heap, node3)
@@ -147,7 +142,7 @@ class WeightedHuffmanCoding(HuffmanCoding):
                     node3 = heapq.heappop(self.heap)
                     node2, node3 = node3, node2
                     heapq.heappush(self.heap, node3)
-            if (self.left < self.right) and (node1.count > node2.count):
+            if (self.left < self.right) is (node1.count > node2.count):
                 node1, node2 = node2, node1
             freq = node1.freq + 1
             merged = HeapNode(None, freq, node1.cost + node2.cost, (node1.count - self.left))
@@ -155,6 +150,8 @@ class WeightedHuffmanCoding(HuffmanCoding):
             merged.left = node1
             merged.right = node2
             heapq.heappush(self.heap, merged)
+            self.heap.sort(key=operator.attrgetter('count'), reverse=True)
+            self.heap.sort(key=operator.attrgetter('freq'), reverse=False)
 
     def make_weighted_codes_helper(self, root, current_code):
         if (root == None):
@@ -166,7 +163,7 @@ class WeightedHuffmanCoding(HuffmanCoding):
             self.temp.append([root.char, root.cost, root.count])
             return
 
-        if (root.left.count > root.right.count) and (root.left.cost > root.right.cost):
+        if (root.left.count >= root.right.count) and (root.left.cost >= root.right.cost):
             root.left, root.right = root.right, root.left
 
         self.make_weighted_codes_helper(root.left, current_code + "0")
@@ -179,6 +176,9 @@ class WeightedHuffmanCoding(HuffmanCoding):
 
     def create_code(self, frequency):
         frequency = {k: frequency[k] for k in sorted(frequency, key=frequency.get, reverse=True)}
+        self.min_que = []
+        self.temp = []
+        self.heap = []
         self.make_min_que(frequency)
         self.merge_min_nodes()
         self.make_weighted_codes()
@@ -203,27 +203,55 @@ class RowColumn():
                     return self.codes
             q += 1
 if __name__ == "__main__":
+    # frequency = {
+    #     "A": 55,
+    #     "B": 32,
+    #     "C": 21,
+    #     "D": 12,
+    #     "E": 17,
+    #     "F": 23,
+    #     "G": 26,
+    #     "H": 18,
+    #     "I": 25,
+    #     "J": 9,
+    #     "K": 14,
+    #     "L": 7,
+    #     "M": 45,
+    #     "N": 47,
+    #     "O": 8,
+    # }
     frequency = {
-        "A": 55,
-        "B": 32,
-        "C": 21,
-        "D": 12,
-        "E": 17,
-        "F": 23,
-        "G": 26,
-        "H": 18,
-        "I": 25,
-        "J": 9,
-        "K": 14,
-        "L": 7,
-        "M": 45,
-        "N": 47,
-        "O": 8,
+        "E": 0.14878610,
+        "T": 0.09354149,
+        "A": 0.08833733,
+        "O": 0.07245769,
+        "R": 0.06872164,
+        "N": 0.06498532,
+        "H": 0.05831331,
+        "I": 0.05644515,
+        "S": 0.05537763,
+        "D": 0.04376834,
+        "L": 0.04123298,
+        "U": 0.02762209,
+        "P": 0.02575393,
+        "F": 0.02455297,
+        "M": 0.02361889,
+        "C": 0.02081665,
+        "W": 0.01868161,
+        "G": 0.01521216,
+        "Y": 0.01521216,
+        "B": 0.01267680,
+        "V": 0.01160928,
+        "K": 0.00867360,
+        "X": 0.00146784,
+        "J": 0.00080064,
+        "Q": 0.00080064,
+        "Z": 0.00053376,
     }
     h = HuffmanCoding()
     codes = h.create_code(frequency)
-    bla = WeightedHuffmanCoding(1, 3)
-    weighted_codes = bla.create_code(frequency)
+    # bla = WeightedHuffmanCoding(1, 3)
+    # weighted_codes = bla.create_code(frequency)
     # vlec = VLECHuffmanCoding()
     # vlec_codes = vlec.create_code(frequency)
     # test = RowColumn()

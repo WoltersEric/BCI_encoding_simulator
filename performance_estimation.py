@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 """
 Test text -> code words -> noise added -> faulty words replaced by backspace and correct letter -> repeat untill no faults -> validate
 """
-#TODO: fix backspace option. what is the probability?
 #TODO: what happens between prob/char2indice missmatch in language model
 
 class PerformanceEstimation:
@@ -47,7 +46,7 @@ class PerformanceEstimation:
         elif self.coding_algorithm == "VLEC":
             self.coding = VLECHuffmanCoding()
         elif self.coding_algorithm == "Weighted":
-            self.coding = WeightedHuffmanCoding(self.noise[0]*100, self.noise[1]*100)
+            self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
         else:
             raise TypeError("Unknown coding algorithm")
 
@@ -202,6 +201,8 @@ class PerformanceEstimation:
 
     def simulate(self, noise):
         self.noise = noise
+        if self.coding_algorithm == "Weighted":
+            self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
         optimal_result = []
         real_result = []
         for i in range(self.iterations):
@@ -257,11 +258,11 @@ def visualize_results():
         'Weighted': [],
     }
     x_axis = list(np.arange(0.75, 0.99, 0.025))
-    # algorithms = ["Huffman", "RowColumn", "VLEC"] # , "Weighted"]
-    algorithms = ["Weighted"]
+    algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
+    # algorithms = ["Weighted"]
     if biased_weight:
         for algor in algorithms:
-            Algorithm = PerformanceEstimation("text.txt", algor, iterations=20)
+            Algorithm = PerformanceEstimation("text.txt", algor, iterations=100)
             for count, i in enumerate(x_axis):
                 tmp_list = []
                 for j in x_axis:
@@ -275,7 +276,7 @@ def visualize_results():
         for algor in algorithms:
             Algorithm = PerformanceEstimation("text.txt", algor, iterations=100)
             for count, i in enumerate(x_axis):
-                tmp = Algorithm.simulate(noise=[i])
+                tmp = Algorithm.simulate(noise=[0.8, i])
                 result_actual[algor].append(tmp[1] * interval / 60)
                 if count == len(x_axis) - 1:
                     result_optimal[algor].append(tmp[0] * interval / 60)
@@ -288,7 +289,7 @@ def plot(results):
     result_optimal = results[1]
     result_actual = results[2]
     biased_weight = False
-    algorithms = ["Huffman", "RowColumn", "VLEC"]
+    algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
     if biased_weight:
         for algor in algorithms:
             result = copy.deepcopy(np.array(result_actual[algor]))
@@ -306,37 +307,32 @@ def plot(results):
         fig, ax = plt.subplots()
         horiz_line_datah = np.array([result_optimal['Huffman']for i in x_axis])
         ax.plot(x_axis, horiz_line_datah, color='red', alpha=0.4)
-        y_axish =np.array(result_actual['Huffman'])
+        y_axish = np.array(result_actual['Huffman'])
         y_axish[y_axish == 0] = 'nan'
         ax.plot(x_axis, y_axish, color='red', alpha=0.7, label="Huffman paradigm")
 
         horiz_line_datar = np.array([result_optimal['RowColumn'] for i in x_axis])
         ax.plot(x_axis, horiz_line_datar, color='blue', alpha=0.4)
-        y_axisr =np.array(result_actual['RowColumn'])
+        y_axisr = np.array(result_actual['RowColumn'])
         y_axisr[y_axisr == 0] = 'nan'
         ax.plot(x_axis, y_axisr, color='blue', alpha=0.7, label="RowColumn paradigm")
 
         horiz_line_datav = np.array([result_optimal['VLEC'] for i in x_axis])
         ax.plot(x_axis, horiz_line_datav, color='black', alpha=0.4)
-        y_axisv =np.array(result_actual['VLEC'])
+        y_axisv = np.array(result_actual['VLEC'])
         y_axisv[y_axisv == 0] = 'nan'
         ax.plot(x_axis, y_axisv, color='black', alpha=0.7, label="VLEC paradigm")
 
-        # horiz_line_datav = np.array([result_optimal['Weighted'] for i in x_axis])
-        # ax.plot(x_axis, horiz_line_datav, color='green', alpha=0.4)
-        # y_axisv =np.array(result_actual['Weighted'])
-        # y_axisv[y_axisv == 0] = 'nan'
-        # ax.plot(x_axis, y_axisv, color='green', alpha=0.7, label="Weighted paradigm")
+        horiz_line_datav = np.array([result_optimal['Weighted'] for i in x_axis])
+        ax.plot(x_axis, horiz_line_datav, color='green', alpha=0.4)
+        y_axisv = np.array(result_actual['Weighted'])
+        y_axisv[y_axisv == 0] = 'nan'
+        ax.plot(x_axis, y_axisv, color='green', alpha=0.7, label="Weighted paradigm")
         ax.set_xlabel('Click accuracy')
         ax.set_ylabel('Time in minutes')
-        ax.set_title('Performance of different spelling paradigms')
+        ax.set_title('Performance of different spelling paradigms with noise [0.8, i]')
         ax.legend()
         plt.show()
 
 results = visualize_results()
 plot(results)
-# Test1 = PerformanceEstimation("text.txt", "Huffman")
-# Test2 = PerformanceEstimation("text.txt", "RowColumn")
-# Test3 = PerformanceEstimation("text.txt", "VLEC")
-# best_num_of_decisions_huffman, num_of_decisions_huffman = Test3.simulate()
-# best_num_of_decisions_rowcolumn, num_of_decisions_rowcolumn = Test2.simulate()
