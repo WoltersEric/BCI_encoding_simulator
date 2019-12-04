@@ -37,6 +37,7 @@ class HuffmanCoding:
 
     @staticmethod
     def merge_nodes(heap):
+        count = 0
         while (len(heap) > 1):
             node1 = heapq.heappop(heap)
             node2 = heapq.heappop(heap)
@@ -46,6 +47,8 @@ class HuffmanCoding:
             merged.right = node2
 
             heapq.heappush(heap, merged)
+            count += 1
+        # print(count)
         return heap
 
     def make_codes_helper(self, root, current_code):

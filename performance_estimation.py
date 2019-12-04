@@ -16,6 +16,7 @@ class PerformanceEstimation:
         self.coding_algorithm = coding_algorithm
         self.noise = noise   # , 0.99]  # [x] or [fp, fn]
         self.codes = None
+        self.interval = 2.6
         self._test_text_data = self._get_test_data(self.path)
         self.chars = list(set(self._test_text_data))
         self.chars.append("bck")
@@ -175,7 +176,7 @@ class PerformanceEstimation:
                 else:
                     noisy_letter = self.determine_faulty_letter(letter, noisy_letter)
                 if letter != noisy_letter:
-                    if num_of_decisions > 500:
+                    if num_of_decisions > 1000:
                         self.breakout = True
                         # print('breakout')
                         error = False
@@ -231,20 +232,21 @@ class PerformanceEstimation:
                         num_of_decisions = 0
                         pass
             if num_of_decisions != 0:
-                optimal_result.append(best_num_of_decisions)
-                real_result.append(num_of_decisions)
-        if optimal_result:
+                optimal_result.append(best_num_of_decisions * self.interval / 60)
+                real_result.append(num_of_decisions * self.interval / 60)
+        if len(optimal_result) > self.iterations/2:
             real_result = [value for value in real_result if value != 0]
             average = sum(real_result) / len(real_result)
         else:
             optimal_result = [0]
             average = 0
         return [max(optimal_result), average]
+        # return [max(optimal_result), real_result]
 
 
 def visualize_results():
     interval = 2.6
-    biased_weight = False
+    biased_weight = True
     result_optimal = {
         'RowColumn': [],
         'Huffman': [],
@@ -258,28 +260,28 @@ def visualize_results():
         'Weighted': [],
     }
     x_axis = list(np.arange(0.75, 0.99, 0.025))
-    algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
-    # algorithms = ["Weighted"]
+    # algorithms = ["Huffman", "RowColumn", "VLEC"] # , "Weighted"]
+    algorithms = ["Weighted"]
     if biased_weight:
         for algor in algorithms:
-            Algorithm = PerformanceEstimation("text.txt", algor, iterations=100)
+            Algorithm = PerformanceEstimation("text.txt", algor, iterations=20)
             for count, i in enumerate(x_axis):
                 tmp_list = []
                 for j in x_axis:
                     tmp = Algorithm.simulate(noise=[i, j])
-                    tmp_list.append(tmp[1] * interval / 60)
+                    tmp_list.append(tmp[1])
                     if (count == len(x_axis) - 1) and (j > 0.97):
-                        result_optimal[algor].append(tmp[0] * interval / 60)
+                        result_optimal[algor].append(tmp[0])
                 result_actual[algor].append(tmp_list)
                 print('stap {0}/{1} van {2} klaar'.format(count+1, len(x_axis), algor))
     else:
         for algor in algorithms:
-            Algorithm = PerformanceEstimation("text.txt", algor, iterations=100)
+            Algorithm = PerformanceEstimation("text.txt", algor, iterations=10)
             for count, i in enumerate(x_axis):
                 tmp = Algorithm.simulate(noise=[0.8, i])
-                result_actual[algor].append(tmp[1] * interval / 60)
+                result_actual[algor].append(tmp[1])
                 if count == len(x_axis) - 1:
-                    result_optimal[algor].append(tmp[0] * interval / 60)
+                    result_optimal[algor].append(tmp[0])
                 print('stap {0}/{1} van {2} klaar'.format(count+1, len(x_axis), algor))
     return [x_axis, result_optimal, result_actual]
 
@@ -288,8 +290,9 @@ def plot(results):
     x_axis = [round(x, 2) for x in x_axis]
     result_optimal = results[1]
     result_actual = results[2]
-    biased_weight = False
-    algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
+    biased_weight = True
+    # algorithms = ["Huffman", "RowColumn", "VLEC"] # , "Weighted"]
+    algorithms = ["Weighted"]
     if biased_weight:
         for algor in algorithms:
             result = copy.deepcopy(np.array(result_actual[algor]))
@@ -300,7 +303,8 @@ def plot(results):
             ax.set_yticks(np.arange(len(x_axis)))
             ax.set_xticklabels(x_axis)
             ax.set_yticklabels(x_axis)
-            ax.set_title('Performance of {} spelling paradigm in minutes'.format(algor))
+            ax.set_title('Performance of {} spelling paradigm in min for 20 iterations'.format(algor))
+            fig.colorbar(im, ax=ax)
             fig.tight_layout()
             plt.show()
     else:
@@ -323,14 +327,14 @@ def plot(results):
         y_axisv[y_axisv == 0] = 'nan'
         ax.plot(x_axis, y_axisv, color='black', alpha=0.7, label="VLEC paradigm")
 
-        horiz_line_datav = np.array([result_optimal['Weighted'] for i in x_axis])
-        ax.plot(x_axis, horiz_line_datav, color='green', alpha=0.4)
-        y_axisv = np.array(result_actual['Weighted'])
-        y_axisv[y_axisv == 0] = 'nan'
-        ax.plot(x_axis, y_axisv, color='green', alpha=0.7, label="Weighted paradigm")
+        # horiz_line_datav = np.array([result_optimal['Weighted'] for i in x_axis])
+        # ax.plot(x_axis, horiz_line_datav, color='green', alpha=0.4)
+        # y_axisv = np.array(result_actual['Weighted'])
+        # y_axisv[y_axisv == 0] = 'nan'
+        # ax.plot(x_axis, y_axisv, color='green', alpha=0.7, label="Weighted paradigm")
         ax.set_xlabel('Click accuracy')
         ax.set_ylabel('Time in minutes')
-        ax.set_title('Performance of different spelling paradigms with noise [0.8, i]')
+        ax.set_title('Performance of different spelling paradigms with unbiased noise')
         ax.legend()
         plt.show()
 
