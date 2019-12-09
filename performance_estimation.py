@@ -2,9 +2,11 @@ from code_generation import HuffmanCoding, RowColumn, WeightedHuffmanCoding, VLE
 from language_model import Rnn
 import os
 import numpy as np
+import math
 import copy
 import re
 import matplotlib.pyplot as plt
+import operator
 """
 Test text -> code words -> noise added -> faulty words replaced by backspace and correct letter -> repeat untill no faults -> validate
 """
@@ -76,6 +78,30 @@ class PerformanceEstimation:
         encoded_text.append([int(i) for i in coded_char])
         return encoded_text
 
+    # def determine_rowcolumn_letter(self, letter, noisy_letter):
+    #     count = 0
+    #     temp_letter = ''
+    #     max_len = max(list(self.codes.values()), key=len)
+    #     cycle_nmbr = math.ceil(math.sqrt(len(self.chars)))
+    #     if letter == noisy_letter:
+    #         return noisy_letter
+    #     else:
+    #         while True:
+    #             bit = noisy_letter[count]
+    #             if letter[count] == 1 and noisy_letter[count] == 0:
+    #
+    #             count+1
+    #         while len(temp_letter) <= len(max_len):
+    #             if len(temp_letter) < len(noisy_letter):
+    #                 bit = noisy_letter[count]
+    #                 count += 1
+    #             else:
+    #                 bit = np.random.choice([0, 1], p=[self.noise[0], 1 - self.noise[0]]) ^ 0
+    #             temp_letter += str(bit)
+    #             if temp_letter in list(self.codes.values()):
+    #                 return [int(i) for i in temp_letter]
+    #         return [int(i) for i in temp_letter]
+
     def determine_faulty_letter(self, letter, noisy_letter):
         count = 0
         temp_letter = ''
@@ -100,49 +126,105 @@ class PerformanceEstimation:
 
     def determine_VLEC_letter(self, letter, noisy_letter):
         count = 0
-        max_len = max(list(self.codes.values()), key=len)
+        possible_codes = list(self.codes.values())
+        possible_codes = sorted(possible_codes, key=len)
+        max_len = max(possible_codes, key=len)
         temp_letter = ''
         if letter == noisy_letter:
             return noisy_letter
         else:
-            while len(temp_letter) <= len(max_len):
+            while len(temp_letter) < len(max_len):
                 if len(temp_letter) < len(letter):
                     bit = noisy_letter[count]
                     count += 1
                 else:
                     bit = np.random.choice([0, 1], p=[self.noise[0], 1 - self.noise[0]]) ^ 0
                 temp_letter += str(bit)
-                if len(temp_letter) >= len(letter):
-                    if len(temp_letter) % 2 == 0:
-                        matches = [x for x in list(self.codes.values()) if len(x) == len(temp_letter)]
-                        # match_values = [match for match in matches if self.hamming1(temp_letter, match) <= 1]
-                        match_values = [self.hamming1(temp_letter, match) for match in matches]
-                        test = [match for match in match_values if match == 0]
-                        if test:
-                            temp_letter = matches[0]
+                possible_codes = [e for e in possible_codes if len(e) >= len(temp_letter)]
+                if len(temp_letter) == len(possible_codes[0]):
+                    # match_dist = {code: self.hamming1(temp_letter, code[:len(possible_codes[0])]) for code in possible_codes if
+                    #               self.hamming1(temp_letter, code[:len(possible_codes[0])]) <= 1}
+                    # if match_dist:
+                    #     if 0 not in match_dist.values():
+                    #         options = [key for (key, value) in match_dist.items() if value == 1]
+                    #         values_shortest = [self.codes_to_freq[match] for match in options if len(match) == len(options[0])]
+                    #         values_long = [self.codes_to_freq[match] for match in options if len(match) != len(options[0])]
+                    #         values_long = sum(values_long)
+                    #         if max(values_shortest) >= values_long:
+                    #             temp_letter = [key for (key, value) in self.codes_to_freq.items() if value == max(values_shortest)]
+                    #             return [int(i) for i in temp_letter]
+                    #         else:
+                    #             possible_codes = [e for e in possible_codes if len(e) > len(possible_codes[0])]
+                    #     elif len([key for (key, value) in match_dist.items() if value == 0]) == 0:
+                    #         temp_letter = list(match_dist.keys())[list(match_dist.values()).index(0)]
+                    #         return [int(i) for i in temp_letter]
+                    #     elif len([key for (key, value) in match_dist.items() if value == 0]) > 1:
+                    #         possible_codes = [e for e in possible_codes if len(e) > len(possible_codes[0])]
+                    # else:
+                    #     # print("kan dit?!")
+                    #
+                    #     values = [self.codes_to_freq[match] for match in possible_codes]
+                    #     temp_letter = [key for (key, value) in self.codes_to_freq.items() if value == max(values)]
+                    #     return [int(i) for i in temp_letter]
+                    match_dist = np.array([[code, self.hamming1(temp_letter, code[:len(possible_codes[0])])] for code in possible_codes])
+                    if match_dist[match_dist[:, 1] == '0'].size != 0:
+                        if match_dist[match_dist[:, 1] == '0'].shape[0] == 1:
+                            temp_letter = match_dist[match_dist[:, 1] == '0'][0, 0]
                             return [int(i) for i in temp_letter]
-                        test = [match for match, matchv in zip(matches, match_values) if matchv == 1]
-                        if test:
-                            if len(test) == 1:
-                                temp_letter = test[0]
-                                return [int(i) for i in temp_letter]
+                        else:
+                            pass
+                    elif match_dist[match_dist[:, 1] == '1'].size != 0:
+                        temp_arr = match_dist[match_dist[:, 1] == '1']
+                        short, long = [], []
+                        for i in range(temp_arr.shape[0]):
+                            if len(temp_arr[i, 0]) == len(temp_arr[0, 0]):
+                                short.append(self.codes_to_freq[temp_arr[i, 0]])
                             else:
-                                values = [self.codes_to_freq[match] for match in test]
-                                temp_letter = test[np.argmax(np.array(values))]
-                                return [int(i) for i in temp_letter]
-                        test = [match for match, matchv in zip(matches, match_values) if matchv == 2]
-                        if test:
-                            if len(test) == 1:
-                                temp_letter = test[0]
-                                return [int(i) for i in temp_letter]
-                            else:
-                                values = [self.codes_to_freq[match] for match in test]
-                                temp_letter = test[np.argmax(np.array(values))]
-                                return [int(i) for i in temp_letter]
-                        test = [match for match in match_values if match > 2]
-                        if test:
-                            temp_letter = matches[0]
+                                long.append(self.codes_to_freq[temp_arr[i, 0]])
+                        if max(short) >= sum(long):
+                            temp_letter = [key for (key, value) in self.codes_to_freq.items() if value == max(short)][0]
                             return [int(i) for i in temp_letter]
+                        else:
+                            pass
+                    else:
+                        opt = min([self.hamming1(temp_letter, match) for match in possible_codes if self.hamming1(temp_letter, match) > 1])
+                        temp_letter = match_dist[match_dist[:, 1] == str(opt)][0, 0]
+                        return [int(i) for i in temp_letter]
+                # possible_codes = [e for e in possible_codes if len(e) > len(temp_letter)]
+                #
+                #
+                #
+                # if len(temp_letter) >= len(letter):
+                #     if len(temp_letter) % 2 == 0:
+                #         matches = [x for x in list(self.codes.values()) if len(x) == len(temp_letter)]
+                #         # match_values = [match for match in matches if self.hamming1(temp_letter, match) <= 1]
+                #         match_values = [self.hamming1(temp_letter, match) for match in matches]
+                #         test = [match for match in match_values if match == 0]
+                #         if test:
+                #             temp_letter = matches[0]
+                #             return [int(i) for i in temp_letter]
+                #         test = [match for match, matchv in zip(matches, match_values) if matchv == 1]
+                #         if test:
+                #             if len(test) == 1:
+                #                 temp_letter = test[0]
+                #                 return [int(i) for i in temp_letter]
+                #             else:
+                #                 values = [self.codes_to_freq[match] for match in test]
+                #                 temp_letter = test[np.argmax(np.array(values))]
+                #                 return [int(i) for i in temp_letter]
+                #         test = [match for match, matchv in zip(matches, match_values) if matchv == 2]
+                #         if test:
+                #             if len(test) == 1:
+                #                 temp_letter = test[0]
+                #                 return [int(i) for i in temp_letter]
+                #             else:
+                #                 values = [self.codes_to_freq[match] for match in test]
+                #                 temp_letter = test[np.argmax(np.array(values))]
+                #                 return [int(i) for i in temp_letter]
+                #         test = [match for match in match_values if match > 2]
+                #         if test:
+                #             temp_letter = matches[0]
+                #             return [int(i) for i in temp_letter]
             return [int(i) for i in temp_letter]
 
     def random_choice(self, bit):
@@ -229,7 +311,7 @@ class PerformanceEstimation:
                         else:
                             num_of_decisions += len(encoded_letter[0])
                     elif self.breakout == True:
-                        num_of_decisions = 0
+                        num_of_decisions = num_of_decisions
                         pass
             if num_of_decisions != 0:
                 optimal_result.append(best_num_of_decisions * self.interval / 60)
@@ -246,7 +328,7 @@ class PerformanceEstimation:
 
 def visualize_results():
     interval = 2.6
-    biased_weight = True
+    biased_weight = False
     result_optimal = {
         'RowColumn': [],
         'Huffman': [],
@@ -260,11 +342,12 @@ def visualize_results():
         'Weighted': [],
     }
     x_axis = list(np.arange(0.75, 0.99, 0.025))
-    # algorithms = ["Huffman", "RowColumn", "VLEC"] # , "Weighted"]
-    algorithms = ["Weighted"]
+    # algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
+    algorithms = ["VLEC"]
+    # algorithms = ["Huffman", "VLEC"]
     if biased_weight:
         for algor in algorithms:
-            Algorithm = PerformanceEstimation("text.txt", algor, iterations=20)
+            Algorithm = PerformanceEstimation("text.txt", algor, iterations=25)
             for count, i in enumerate(x_axis):
                 tmp_list = []
                 for j in x_axis:
@@ -290,37 +373,42 @@ def plot(results):
     x_axis = [round(x, 2) for x in x_axis]
     result_optimal = results[1]
     result_actual = results[2]
-    biased_weight = True
-    # algorithms = ["Huffman", "RowColumn", "VLEC"] # , "Weighted"]
-    algorithms = ["Weighted"]
+    biased_weight = False
+    # algorithms = ["Huffman", "RowColumn", "VLEC", "Weighted"]
+    algorithms = ["VLEC", "Huffman"]
+    # algorithms = ["Huffman", "Weighted"]
     if biased_weight:
         for algor in algorithms:
             result = copy.deepcopy(np.array(result_actual[algor]))
             result.astype(float)
             fig, ax = plt.subplots()
-            im = ax.imshow(result)
+            im = ax.imshow(result, cmap='RdBu_r', vmin=0, vmax=90)
             ax.set_xticks(np.arange(len(x_axis)))
             ax.set_yticks(np.arange(len(x_axis)))
             ax.set_xticklabels(x_axis)
             ax.set_yticklabels(x_axis)
-            ax.set_title('Performance of {} spelling paradigm in min for 20 iterations'.format(algor))
+            ax.set_title('Performance of {} spelling paradigm in min for 25 iterations'.format(algor))
+            ax.set_xlabel('True negative rate')
+            ax.set_ylabel('True positive rate')
             fig.colorbar(im, ax=ax)
+            fig.set_label('Time to spell full sentence in minutes')
             fig.tight_layout()
+            ax.legend()
             plt.show()
     else:
         fig, ax = plt.subplots()
-        horiz_line_datah = np.array([result_optimal['Huffman']for i in x_axis])
-        ax.plot(x_axis, horiz_line_datah, color='red', alpha=0.4)
-        y_axish = np.array(result_actual['Huffman'])
-        y_axish[y_axish == 0] = 'nan'
-        ax.plot(x_axis, y_axish, color='red', alpha=0.7, label="Huffman paradigm")
+        # horiz_line_datah = np.array([result_optimal['Huffman']for i in x_axis])
+        # ax.plot(x_axis, horiz_line_datah, color='red', alpha=0.4)
+        # y_axish = np.array(result_actual['Huffman'])
+        # y_axish[y_axish == 0] = 'nan'
+        # ax.plot(x_axis, y_axish, color='red', alpha=0.7, label="Huffman paradigm")
 
-        horiz_line_datar = np.array([result_optimal['RowColumn'] for i in x_axis])
-        ax.plot(x_axis, horiz_line_datar, color='blue', alpha=0.4)
-        y_axisr = np.array(result_actual['RowColumn'])
-        y_axisr[y_axisr == 0] = 'nan'
-        ax.plot(x_axis, y_axisr, color='blue', alpha=0.7, label="RowColumn paradigm")
-
+        # horiz_line_datar = np.array([result_optimal['RowColumn'] for i in x_axis])
+        # ax.plot(x_axis, horiz_line_datar, color='blue', alpha=0.4)
+        # y_axisr = np.array(result_actual['RowColumn'])
+        # y_axisr[y_axisr == 0] = 'nan'
+        # ax.plot(x_axis, y_axisr, color='blue', alpha=0.7, label="RowColumn paradigm")
+        #
         horiz_line_datav = np.array([result_optimal['VLEC'] for i in x_axis])
         ax.plot(x_axis, horiz_line_datav, color='black', alpha=0.4)
         y_axisv = np.array(result_actual['VLEC'])

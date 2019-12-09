@@ -2,6 +2,7 @@ import heapq
 import numpy as np
 import copy
 import operator
+import math
 
 class HeapNode:
     def __init__(self, char, freq, cost=None, count=None):
@@ -34,6 +35,11 @@ class HuffmanCoding:
         for key in frequency:
             node = HeapNode(key, frequency[key])
             heapq.heappush(self.heap, node)
+
+    @staticmethod
+    def determine_avg_length(codes, frequency):
+        indv_len = [len(codes[k]) * frequency[k] for k in codes.keys()]
+        return sum(indv_len)
 
     @staticmethod
     def merge_nodes(heap):
@@ -87,8 +93,8 @@ class VLECHuffmanCoding(HuffmanCoding):
             self.reverse_mapping[current_code] = root.char
             return
 
-        self.make_codes_helper(root.left, current_code + "010")
-        self.make_codes_helper(root.right, current_code + "101")
+        self.make_VLEC_codes_helper(root.left, current_code + "01")
+        self.make_VLEC_codes_helper(root.right, current_code + "10")
 
     def make_VLEC_codes(self):
         root = heapq.heappop(self.heap)
@@ -178,14 +184,23 @@ class WeightedHuffmanCoding(HuffmanCoding):
         self.make_weighted_codes_helper(root, current_code)
 
     def create_code(self, frequency):
+        self.make_heap(frequency)
+        self.heap = self.merge_nodes(self.heap)
+        self.make_codes()
+        avg = self.determine_avg_length(self.codes, frequency)
+        self.left = math.pow(self.left, avg)
+        self.right = math.pow(self.right, avg)
         frequency = {k: frequency[k] for k in sorted(frequency, key=frequency.get, reverse=True)}
         self.min_que = []
         self.temp = []
         self.heap = []
+        self.codes = {}
+        self.reverse_mapping = {}
         self.make_min_que(frequency)
         self.merge_min_nodes()
         self.make_weighted_codes()
         return self.codes
+
 
 class RowColumn():
     def __init__(self):
@@ -206,55 +221,55 @@ class RowColumn():
                     return self.codes
             q += 1
 if __name__ == "__main__":
-    # frequency = {
-    #     "A": 55,
-    #     "B": 32,
-    #     "C": 21,
-    #     "D": 12,
-    #     "E": 17,
-    #     "F": 23,
-    #     "G": 26,
-    #     "H": 18,
-    #     "I": 25,
-    #     "J": 9,
-    #     "K": 14,
-    #     "L": 7,
-    #     "M": 45,
-    #     "N": 47,
-    #     "O": 8,
-    # }
     frequency = {
-        "E": 0.14878610,
-        "T": 0.09354149,
-        "A": 0.08833733,
-        "O": 0.07245769,
-        "R": 0.06872164,
-        "N": 0.06498532,
-        "H": 0.05831331,
-        "I": 0.05644515,
-        "S": 0.05537763,
-        "D": 0.04376834,
-        "L": 0.04123298,
-        "U": 0.02762209,
-        "P": 0.02575393,
-        "F": 0.02455297,
-        "M": 0.02361889,
-        "C": 0.02081665,
-        "W": 0.01868161,
-        "G": 0.01521216,
-        "Y": 0.01521216,
-        "B": 0.01267680,
-        "V": 0.01160928,
-        "K": 0.00867360,
-        "X": 0.00146784,
-        "J": 0.00080064,
-        "Q": 0.00080064,
-        "Z": 0.00053376,
+        "A": 55,
+        "B": 32,
+        "C": 21,
+        "D": 12,
+        "E": 17,
+        "F": 23,
+        "G": 26,
+        "H": 18,
+        "I": 25,
+        "J": 9,
+        "K": 14,
+        "L": 7,
+        "M": 45,
+        "N": 47,
+        "O": 8,
     }
+    # frequency = {
+    #     "E": 0.14878610,
+    #     "T": 0.09354149,
+    #     "A": 0.08833733,
+    #     "O": 0.07245769,
+    #     "R": 0.06872164,
+    #     "N": 0.06498532,
+    #     "H": 0.05831331,
+    #     "I": 0.05644515,
+    #     "S": 0.05537763,
+    #     "D": 0.04376834,
+    #     "L": 0.04123298,
+    #     "U": 0.02762209,
+    #     "P": 0.02575393,
+    #     "F": 0.02455297,
+    #     "M": 0.02361889,
+    #     "C": 0.02081665,
+    #     "W": 0.01868161,
+    #     "G": 0.01521216,
+    #     "Y": 0.01521216,
+    #     "B": 0.01267680,
+    #     "V": 0.01160928,
+    #     "K": 0.00867360,
+    #     "X": 0.00146784,
+    #     "J": 0.00080064,
+    #     "Q": 0.00080064,
+    #     "Z": 0.00053376,
+    # }
     h = HuffmanCoding()
     codes = h.create_code(frequency)
-    # bla = WeightedHuffmanCoding(1, 3)
-    # weighted_codes = bla.create_code(frequency)
+    bla = WeightedHuffmanCoding(1, 3)
+    weighted_codes = bla.create_code(frequency)
     # vlec = VLECHuffmanCoding()
     # vlec_codes = vlec.create_code(frequency)
     # test = RowColumn()
