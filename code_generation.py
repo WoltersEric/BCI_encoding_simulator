@@ -93,8 +93,8 @@ class VLECHuffmanCoding(HuffmanCoding):
             self.reverse_mapping[current_code] = root.char
             return
 
-        self.make_VLEC_codes_helper(root.left, current_code + "01")
-        self.make_VLEC_codes_helper(root.right, current_code + "10")
+        self.make_VLEC_codes_helper(root.left, current_code + "010")
+        self.make_VLEC_codes_helper(root.right, current_code + "101")
 
     def make_VLEC_codes(self):
         root = heapq.heappop(self.heap)
@@ -120,14 +120,26 @@ class WeightedHuffmanCoding(HuffmanCoding):
         node = HeapNode("leaf", 0, count=len(frequency))
         heapq.heappush(self.min_que, node)
         for i in range(len(frequency)-1):
+            nodes = []
             node = heapq.heappop(self.min_que)
+            # if self.min_que:
+            #     while len(self.min_que) > 1 and self.min_que[0].count == node.count:
+            #         nodes.append(heapq.heappop(self.min_que))
+            #     if len(nodes) > 0:
+            #         min_num = min(nodes, key=operator.attrgetter('count'))
+            #         for n in nodes:
+            #             if n.count == min_num:
+            #                 node1, n = n, node1
+            #                 heapq.heappush(self.heap, n)
+            #             else:
+            #                 heapq.heappush(self.heap, n)
             counter = node.count - 1
             node1 = HeapNode("leaf", node.freq + self.left, count=counter)
             node2 = HeapNode("leaf", node.freq + self.right, count=counter)
             heapq.heappush(self.min_que, node1)
             heapq.heappush(self.min_que, node2)
-        self.min_que.sort(key=operator.attrgetter('count'), reverse=True)
-        self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
+            self.min_que.sort(key=operator.attrgetter('count'), reverse=True)
+            self.min_que.sort(key=operator.attrgetter('freq'), reverse=False)
         for i in range(len(frequency)):
             node3 = self.min_que[i]
             key = list(frequency)[i]
@@ -138,7 +150,7 @@ class WeightedHuffmanCoding(HuffmanCoding):
         while (len(self.heap) > 1):
             node1 = heapq.heappop(self.heap)
             node2 = heapq.heappop(self.heap)
-            if (round(node1.count, 5) == round(node2.count, 5)) and (self.left-self.right != 0):
+            if (round(node1.count, 5) == round(node2.count, 5)) and (round(self.left-self.right, 5) != 0):
                 node3 = heapq.heappop(self.heap)
                 node1, node3 = node3, node1
                 heapq.heappush(self.heap, node3)
@@ -184,6 +196,8 @@ class WeightedHuffmanCoding(HuffmanCoding):
         self.make_weighted_codes_helper(root, current_code)
 
     def create_code(self, frequency):
+        sum_freq = sum(frequency.values())
+        frequency = {k: (frequency[k]/sum_freq) for k in frequency.keys()}
         self.make_heap(frequency)
         self.heap = self.merge_nodes(self.heap)
         self.make_codes()
@@ -268,7 +282,7 @@ if __name__ == "__main__":
     # }
     h = HuffmanCoding()
     codes = h.create_code(frequency)
-    bla = WeightedHuffmanCoding(1, 3)
+    bla = WeightedHuffmanCoding(0.8, 0.75)
     weighted_codes = bla.create_code(frequency)
     # vlec = VLECHuffmanCoding()
     # vlec_codes = vlec.create_code(frequency)
