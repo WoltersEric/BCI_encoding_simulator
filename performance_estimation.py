@@ -1,13 +1,9 @@
 from code_generation import HuffmanCoding, RowColumn, WeightedHuffmanCoding, VLECHuffmanCoding
 from language_model import Rnn
-import os
 import numpy as np
-import math
 import copy
-import re
 import matplotlib.pyplot as plt
 import scipy.stats
-import operator
 """
 Test text -> code words -> noise added -> faulty words replaced by backspace and correct letter -> repeat untill no faults -> validate
 """
