@@ -1,8 +1,8 @@
-from keras.callbacks import LearningRateScheduler, Callback
-from keras.models import Model, load_model
-from keras.preprocessing import sequence
-from keras.preprocessing.text import Tokenizer, text_to_word_sequence
-from keras import backend as K
+from tensorflow.keras.callbacks import LearningRateScheduler, Callback
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.preprocessing import sequence
+from tensorflow.keras.preprocessing.text import Tokenizer, text_to_word_sequence
+from tensorflow.keras import backend as K
 from sklearn.preprocessing import LabelBinarizer
 from random import shuffle
 from tqdm import trange
@@ -42,7 +42,6 @@ def textgenrnn_sample(preds, temperature, interactive=False, top_n=3):
         index = (-preds).argsort()[:top_n]
 
     return index
-
 
 def textgenrnn_prob_generate(model, vocab, indices_char, temperature=0.5,
                         maxlen=40, meta_token='<s>',
@@ -191,14 +190,18 @@ def textgenrnn_generate(model, vocab,
 
     # If word level, remove spaces around punctuation for cleanliness.
     if word_level:
-        #     left_punct = "!%),.:;?@]_}\\n\\t'"
-        #     right_punct = "$([_\\n\\t'"
+        left_punct = "!%),.:;?@\]_}\\n\\t'"
+        right_punct = "$(\[_\\n\\t'"
         punct = '\\n\\t'
-        text_joined = re.sub(" ([{}]) ".format(punct), r'\1', text_joined)
-        #     text_joined = re.sub(" ([{}])".format(
-        #       left_punct), r'\1', text_joined)
-        #     text_joined = re.sub("([{}]) ".format(
-        #       right_punct), r'\1', text_joined)
+
+        text_joined = re.sub(" ([{}]) ".format(
+            punct), r'\1', text_joined)
+        text_joined = re.sub(" ([{}])".format(
+            left_punct), r'\1', text_joined)
+        text_joined = re.sub("([{}]) ".format(
+            right_punct), r'\1', text_joined)
+        text_joined = re.sub('" (.+?) "', 
+            r'"\1"', text_joined)
 
     return text_joined, end
 
@@ -226,7 +229,8 @@ def textgenrnn_texts_from_file(file_path, header=True,
             texts = []
             reader = csv.reader(f)
             for row in reader:
-                texts.append(row[0])
+                if row:
+                    texts.append(row[0])
         else:
             texts = [line.rstrip(delim) for line in f]
 
@@ -245,8 +249,9 @@ def textgenrnn_texts_from_file_context(file_path, header=True):
         context_labels = []
         reader = csv.reader(f)
         for row in reader:
-            texts.append(row[0])
-            context_labels.append(row[1])
+            if row:
+                texts.append(row[0])
+                context_labels.append(row[1])
 
     return (texts, context_labels)
 
