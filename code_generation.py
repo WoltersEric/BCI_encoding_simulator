@@ -222,17 +222,34 @@ class RowColumn():
     def create_code(self, frequency):
         length = len(list(frequency.keys()))
         frequency = {k: frequency[k] for k in sorted(frequency, key=frequency.get, reverse=True)}
+        dimensions = self.determine_rectangle(length)
         q = 1
         count = 0
+        first_time = True
         while True:
             base = np.identity(q, dtype=int).tolist()
             codes = [k + [1] for k in base]
+            if q > dimensions[0]:
+                if first_time:
+                    codes = codes[:(dimensions[0]-q)]
+                    first_time = False
+                else:
+                    codes = codes[-(dimensions[0]-q+1):-1]
             for current_code in codes:
                 self.codes[list(frequency.keys())[count]] = ''.join(map(str, current_code))
                 count += 1
                 if count == length:
                     return self.codes
             q += 1
+
+    @staticmethod
+    def determine_rectangle(number):
+        answer = 1
+        while (answer ** 2) < number:
+            answer += 1
+        dimensions = [answer, ((number-1)//answer+1)]
+        return dimensions
+
 if __name__ == "__main__":
     frequency = {
         "A": 55,
@@ -279,11 +296,14 @@ if __name__ == "__main__":
     #     "Q": 0.00080064,
     #     "Z": 0.00053376,
     # }
-    h = HuffmanCoding()
-    codes = h.create_code(frequency)
-    bla = WeightedHuffmanCoding(0.8, 0.75)
-    weighted_codes = bla.create_code(frequency)
-    # vlec = VLECHuffmanCoding()
-    # vlec_codes = vlec.create_code(frequency)
-    # test = RowColumn()
-    # codes2 = test.create_code(frequency)
+    print(RowColumn.determine_rectangle(30))
+    r = RowColumn()
+    codes = r.create_code(frequency)
+    # h = HuffmanCoding()
+    # codes = h.create_code(frequency)
+    # bla = WeightedHuffmanCoding(0.8, 0.75)
+    # weighted_codes = bla.create_code(frequency)
+    # # vlec = VLECHuffmanCoding()
+    # # vlec_codes = vlec.create_code(frequency)
+    # # test = RowColumn()
+    # # codes2 = test.create_code(frequency)
