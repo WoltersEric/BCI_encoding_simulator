@@ -2,19 +2,18 @@ from code_generation import HuffmanCoding, RowColumn, WeightedHuffmanCoding, VLE
 from language_model import Rnn
 import numpy as np
 import string
-import copy
-import matplotlib.pyplot as plt
-import scipy.stats
+import pandas as pd
 """
 Test text -> code words -> noise added -> faulty words replaced by backspace and correct letter -> repeat untill no faults -> validate
 """
 #TODO: what happens between prob/char2indice missmatch in language model
 
 class Simulation:
-    def __init__(self, path, coding_algorithm, iterations):
+    def __init__(self, path, coding_algorithm, human_error, iterations):
         self.path = path
         self.coding_algorithm = coding_algorithm
         self.noise = [0.9, 0.8]  # [x] or [TN, TP]
+        self.human_error = human_error
         self.iterations = iterations
 
         self.codes = None
@@ -28,6 +27,7 @@ class Simulation:
         # self.chars = list(set(self._test_text_data))
         self.chars = list(string.ascii_lowercase)
         self.chars.append("bck")
+        self.chars.append(" ")
         self.char_to_ix = {ch: i for i, ch in enumerate(self.chars)}
         self.ix_to_char = {i: ch for i, ch in enumerate(self.chars)}
 
@@ -60,7 +60,7 @@ class Simulation:
         prob = self.RNN.predict_letter_prob(prior)
         prob = {k: prob[k] for k in prob.keys() if k in self.chars}
         if self.coding_algorithm == "RowColumn":
-            prob.update({"BS": 0.1})
+            prob.update({"BS": 0.2})
         else:
             prob.update({"BS": 0.2})
         return prob
@@ -120,6 +120,8 @@ class Simulation:
                     # check whether bits match
                     if letter[count] == noisy_letter[count]:
                         temp_letter += str(letter[count])
+                        if letter[count] == 1:
+                            one_count += 1
                         count += 1
                     else:
                         # bit mismatch; types 1 instead of 0 Assumption is wrong selection is made on purpose
@@ -132,14 +134,14 @@ class Simulation:
                             return [int(i) for i in temp_letter]
                         # bit mismatch; types 0 instead of 1
                         else:
-                            # temp_letter += str(0)
+                            temp_letter += str(0)
                             if one_count == 0:
-                                number_of_zeros = dimensions[1]
+                                number_of_zeros = dimensions[1]-1
                             else:
-                                number_of_zeros = dimensions[0]
+                                number_of_zeros = dimensions[0]-1
                             # try to type required zeros
                             while not clickmade:
-                                for i in range(number_of_zeros-1):
+                                for i in range(number_of_zeros):
                                     # if this fails
                                     if self.random_choice(0) ^ 0 != 0:
                                         temp_letter += str(1)
@@ -159,26 +161,37 @@ class Simulation:
                                     if one_count == 0:
                                         temp_letter += str(1)
                                         one_count += 1
-                                        # count += 1
+                                        noisy_letter[count] == 1
                                         clickmade = True
                                     else:
                                         temp_letter += str(1)
                                         return [int(i) for i in temp_letter]
+                return [int(i) for i in temp_letter]
 
             if self.coding_algorithm == "VLEC":
-                paradigm_option = False
+                paradigm_option = True
                 if paradigm_option:
                     while len(temp_letter) <= len(max_len):
                         if len(temp_letter) < len(noisy_letter):
                             bit = noisy_letter[count]
                             count += 1
                         else:
-                            # TODO zerooo probably also for VLEC
-                            # choose zeros
                             bit = self.random_choice(0) ^ 0
                         temp_letter += str(bit)
-                        if temp_letter in list(self.codes.values()):
-                            return [int(i) for i in temp_letter]
+                        if len(temp_letter) % 2 == 0:
+                            possible_codes = [e for e in possible_codes if len(e) >= len(temp_letter)]
+
+                            opt = min([self.hamming1(temp_letter, code[:len(possible_codes[0])]) for code in possible_codes])
+                            matches = [code for code in possible_codes if
+                                       len(code) == len(temp_letter) and self.hamming1(temp_letter, code) == opt]
+                            if matches:
+                                if len(matches) > 1:
+                                    temp_letter = matches[0]
+                                    return [int(i) for i in temp_letter]
+                                else:
+                                    return [int(i) for i in matches[0]]
+                            else:
+                                pass
                     return [int(i) for i in temp_letter]
                 else:
                     while len(temp_letter) < len(max_len):
@@ -251,6 +264,15 @@ class Simulation:
 
     def add_noise(self, encoded_text):
         """" Adds noise to the text """
+        noisy_coded = []
+        if self.human_error:
+            for character in encoded_text:
+                noise_vector = np.random.choice([0, 1], size=len(character),
+                                                p=[1-self.human_error[self.coding_algorithm],self.human_error[self.coding_algorithm]]).tolist()
+                noisy_coded.append((np.array(character) ^ np.array(noise_vector)).tolist())
+            # if noisy_coded == encoded_text:
+                # print('wow')
+            encoded_text = noisy_coded
         noisy_coded_text = []
         for character in encoded_text:
             if len(self.noise) > 1:
@@ -260,101 +282,93 @@ class Simulation:
             noisy_coded_text.append((np.array(character) ^ np.array(noise_vector)).tolist())
         return noisy_coded_text
 
-    def determine_error_correction(self, char):
-        error = True
-        num_of_decisions = 0
-        backspace = [int(i) for i in self.codes["BS"]]
-        #determine new codes
-
-        encoded_letter = self.create_coded_letter(character)
-        # add noise to the binary code
-        noisy_coded_letter = self.add_noise(encoded_letter)[0]
-
-        new_text = [backspace, char]
-        while error:
-            noisy_new_text = self.add_noise(new_text)
-            for letter, noisy_letter in zip(new_text, noisy_new_text):
-                noisy_letter = self.determine_typed_letter(letter, noisy_letter)
-                if len(noisy_letter) < 1:
-                    raise Exception('dit kan niet. The value of x was: {}'.format(noisy_letter))
-                if letter != noisy_letter:
-                    if num_of_decisions > 500:
-                        # self.breakout = True
-                        # print('breakout')
-                        return num_of_decisions
-                        error = False
-                        break
-                    elif letter == backspace:
-                        new_text.insert(0, backspace)
-                        num_of_decisions += len(noisy_letter)
-                        break
-                    else:
-                        new_text = [backspace, letter]
-                        num_of_decisions += len(noisy_letter)
-                        break
-                    break
-                else:
-                    num_of_decisions += len(letter)
-                    if letter != backspace:
-                        error = False
-                    else:
-                        if len(new_text) > 1:
-                            del new_text[0]
-                            del noisy_new_text[0]
-        return num_of_decisions
+    def determine_rowcolumn(self, code):
+        dimensions = RowColumn.determine_rectangle(len(self.chars))
+        ones_idx = [i for i, x in enumerate(code) if x == 1]
+        x = ones_idx[0] % (dimensions[1])
+        y = (ones_idx[1] - (ones_idx[0]+1)) % (dimensions[0])
+        char = '0'*x+'1'+'0'*y+'1'
+        try:
+            self.codes_to_char[''.join(str(x) for x in char)]
+            return self.codes_to_char[''.join(str(x) for x in char)]
+        except:
+            return 'empty'
 
     def simulate(self, noise):
         """" Run the simulation"""
         self.noise = noise
         if self.coding_algorithm == "Weighted":
             self.coding = WeightedHuffmanCoding(self.noise[1], self.noise[0])
-        optimal_result = []
-        real_result = []
-        # For the number of iterations
+        data = []
+        columns = ['N', 'Algorithm', 'Noise', 'TotalClicks']
+        best_num_of_decisions = 0
+
+       # For the number of iterations
         for i in range(self.iterations):
             self.init_sim()
-            self.breakout = False
+            # for char in self._test_text_data:
+            #     encoded_letter = self.create_coded_letter(char)
+            #     self.prior.extend(char)
+            #     best_num_of_decisions += len(encoded_letter[0])
+            # self.prior = []
             best_num_of_decisions = 0
             num_of_decisions = 0
+            sentence_typed = False
+            target_id = 0
+            backspaces_needed = 0
             # For every letter in the target sentence/word
-            for character in self._test_text_data:
-                if character not in self.initial_freq.keys():
-                    continue
+            for letter in self._test_text_data:
+                encoded_letter = self.create_coded_letter(letter)
+                self.prior.extend(letter)
+                best_num_of_decisions += len(encoded_letter[0])
+            self.prior = []
+            while not sentence_typed:
+                if backspaces_needed > 0:
+                    target_letter = "BS"
                 else:
-                    # encode letter to binary code
-                    encoded_letter = self.create_coded_letter(character)
-                    # add noise to the binary code
-                    noisy_coded_letter = self.add_noise(encoded_letter)[0]
-                    if character == "BS":
-                        try:
-                            self.prior = self.prior[:-1]
-                        except:
-                            pass
-                    else:
-                        self.prior.extend(self.codes_to_char[''.join(str(x) for x in noisy_coded_letter)])
-                    # log bits needed for the case with no noise
-                    best_num_of_decisions += len(encoded_letter[0])
-                    # check whether algorithm got stuck in loop
-                    if self.breakout == False:
-                        noisy_coded_letter = self.determine_typed_letter(encoded_letter[0], noisy_coded_letter)
-                        # check whether noise affected the original binary code
-                        if encoded_letter[0] != noisy_coded_letter:
-                            num_of_decisions += len(noisy_coded_letter)
-                            # wrong letter is typed so determine the number of decisions/bits it takes to type a backspace and correct letter
-                            num_of_decisions += self.determine_error_correction(encoded_letter[0])
-                        else:
-                            num_of_decisions += len(encoded_letter[0])
-                    elif self.breakout == True:
+                    target_letter = self._test_text_data[target_id]
+                # encode letter to binary code
+                encoded_letter = self.create_coded_letter(target_letter)
+                # add noise to the binary code
+                noisy_coded_letter = self.add_noise(encoded_letter)[0]
+                noisy_encoded_letter = self.determine_typed_letter(encoded_letter[0], noisy_coded_letter)
+                num_of_decisions += len(noisy_encoded_letter)
+                if self.coding_algorithm == "RowColumn":
+                    character = self.determine_rowcolumn(noisy_encoded_letter)
+                else:
+                    character = self.codes_to_char[''.join(str(x) for x in noisy_encoded_letter)]
+                if character == "BS":
+                    try:
+                        self.prior = self.prior[:-1]
+                    except:
                         pass
-            if num_of_decisions != 0:
-                optimal_result.append(best_num_of_decisions)
-                real_result.append(num_of_decisions)
-        if len(optimal_result) > self.iterations/2:
-            real_result = [value for value in real_result if value != 0]
-            average = sum(real_result) / len(real_result)
-        else:
-            optimal_result = [0]
-            average = 0
-        return [max(optimal_result), average]
+                elif character == 'empty':
+                    pass
+                else:
+                    self.prior.extend(character)
+
+                if character != target_letter:
+                    if character == "BS":
+                        if backspaces_needed == 0:
+                            target_id -= 1
+                            if target_id < 0:
+                                target_id = 0
+                        else:
+                            backspaces_needed -= 1
+                    else:
+                        backspaces_needed += 1
+                else:
+                    if character == "BS":
+                        backspaces_needed -= 1
+                    else:
+                        target_id += 1
+
+                if target_id == len(self._test_text_data) or num_of_decisions > 1000:
+                    sentence_typed = True
+                    data.append([i, self.coding_algorithm, 'TN={}:TP={}'.format(self.noise[0], self.noise[1]),
+                                 num_of_decisions])
+                    data.append([i, self.coding_algorithm, 'no noise', best_num_of_decisions])
+        df = pd.DataFrame(data, columns=columns)
+        return df
         # return [max(optimal_result), real_result]
 

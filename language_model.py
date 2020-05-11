@@ -1,7 +1,4 @@
-"""
-Minimal character-level Vanilla RNN model. adapted from Andrej Karpathy (@karpathy)
-BSD License
-"""
+
 from textgenrnn import textgenrnn
 from textgenrnn.model import textgenrnn_model
 from textgenrnn.model_training import *

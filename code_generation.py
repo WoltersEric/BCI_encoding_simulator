@@ -121,17 +121,6 @@ class WeightedHuffmanCoding(HuffmanCoding):
         for i in range(len(frequency)-1):
             nodes = []
             node = heapq.heappop(self.min_que)
-            # if self.min_que:
-            #     while len(self.min_que) > 1 and self.min_que[0].count == node.count:
-            #         nodes.append(heapq.heappop(self.min_que))
-            #     if len(nodes) > 0:
-            #         min_num = min(nodes, key=operator.attrgetter('count'))
-            #         for n in nodes:
-            #             if n.count == min_num:
-            #                 node1, n = n, node1
-            #                 heapq.heappush(self.heap, n)
-            #             else:
-            #                 heapq.heappush(self.heap, n)
             counter = node.count - 1
             node1 = HeapNode("leaf", node.freq + self.left, count=counter)
             node2 = HeapNode("leaf", node.freq + self.right, count=counter)
@@ -229,12 +218,12 @@ class RowColumn():
         while True:
             base = np.identity(q, dtype=int).tolist()
             codes = [k + [1] for k in base]
-            if q > dimensions[0]:
+            if q > dimensions[0]-1:
                 if first_time:
-                    codes = codes[:(dimensions[0]-q)]
+                    codes = codes[:(dimensions[0]-1-q)]
                     first_time = False
                 else:
-                    codes = codes[-(dimensions[0]-q+1):-1]
+                    codes = codes[-(dimensions[0]-q):(dimensions[0]-1-q)]
             for current_code in codes:
                 self.codes[list(frequency.keys())[count]] = ''.join(map(str, current_code))
                 count += 1
