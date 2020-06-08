@@ -3,10 +3,6 @@ from language_model import Rnn
 import numpy as np
 import string
 import pandas as pd
-"""
-Test text -> code words -> noise added -> faulty words replaced by backspace and correct letter -> repeat untill no faults -> validate
-"""
-#TODO: what happens between prob/char2indice missmatch in language model
 
 class Simulation:
     def __init__(self, path, coding_algorithm, human_error, iterations):
@@ -24,7 +20,6 @@ class Simulation:
         self.prior = []
 
         self._test_text_data = self._get_test_data()
-        # self.chars = list(set(self._test_text_data))
         self.chars = list(string.ascii_lowercase)
         self.chars.append("bck")
         self.chars.append(" ")
@@ -51,7 +46,7 @@ class Simulation:
         elif self.coding_algorithm == "VLEC":
             self.coding = VLECHuffmanCoding()
         elif self.coding_algorithm == "Weighted":
-            self.coding = WeightedHuffmanCoding(self.noise[1], self.noise[0])
+            self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
         else:
             raise TypeError("Unknown coding algorithm")
 
@@ -59,10 +54,7 @@ class Simulation:
         """" Returns probabilities list for current typed letters(prior) """
         prob = self.RNN.predict_letter_prob(prior)
         prob = {k: prob[k] for k in prob.keys() if k in self.chars}
-        if self.coding_algorithm == "RowColumn":
-            prob.update({"BS": 0.2})
-        else:
-            prob.update({"BS": 0.2})
+        prob.update({"BS": 0.2})
         return prob
 
     def init_sim(self):
@@ -104,8 +96,6 @@ class Simulation:
                         bit = noisy_letter[count]
                         count += 1
                     else:
-                        #TODO zerooo probably also for VLEC
-                        # choose zeros
                         bit = self.random_choice(0) ^ 0
                     temp_letter += str(bit)
                     if temp_letter in list(self.codes.values()):
@@ -199,7 +189,7 @@ class Simulation:
                             bit = noisy_letter[count]
                             count += 1
                         else:
-                            bit = np.random.choice([0, 1], p=[self.noise[0], 1 - self.noise[0]]) ^ 0
+                            bit = self.random_choice(0) ^ 0
                         temp_letter += str(bit)
                         possible_codes = [e for e in possible_codes if len(e) >= len(temp_letter)]
                         if len(temp_letter) == len(possible_codes[0]):
@@ -298,21 +288,19 @@ class Simulation:
         """" Run the simulation"""
         self.noise = noise
         if self.coding_algorithm == "Weighted":
-            self.coding = WeightedHuffmanCoding(self.noise[1], self.noise[0])
+            self.coding = WeightedHuffmanCoding(self.noise[0], self.noise[1])
         data = []
-        columns = ['N', 'Algorithm', 'Noise', 'TotalClicks']
-        best_num_of_decisions = 0
+        columns = ['N', 'Algorithm', 'Noise', 'TotalClicks', 'NmOfOnes', 'NmOfZeros']
 
        # For the number of iterations
         for i in range(self.iterations):
             self.init_sim()
-            # for char in self._test_text_data:
-            #     encoded_letter = self.create_coded_letter(char)
-            #     self.prior.extend(char)
-            #     best_num_of_decisions += len(encoded_letter[0])
-            # self.prior = []
             best_num_of_decisions = 0
             num_of_decisions = 0
+            best_num_zeros = 0
+            num_zeros = 0
+            best_num_ones = 0
+            num_ones = 0
             sentence_typed = False
             target_id = 0
             backspaces_needed = 0
@@ -321,6 +309,8 @@ class Simulation:
                 encoded_letter = self.create_coded_letter(letter)
                 self.prior.extend(letter)
                 best_num_of_decisions += len(encoded_letter[0])
+                best_num_ones += encoded_letter[0].count(1)
+                best_num_zeros += encoded_letter[0].count(0)
             self.prior = []
             while not sentence_typed:
                 if backspaces_needed > 0:
@@ -333,6 +323,8 @@ class Simulation:
                 noisy_coded_letter = self.add_noise(encoded_letter)[0]
                 noisy_encoded_letter = self.determine_typed_letter(encoded_letter[0], noisy_coded_letter)
                 num_of_decisions += len(noisy_encoded_letter)
+                num_zeros += noisy_encoded_letter.count(0)
+                num_ones += noisy_encoded_letter.count(1)
                 if self.coding_algorithm == "RowColumn":
                     character = self.determine_rowcolumn(noisy_encoded_letter)
                 else:
@@ -363,12 +355,11 @@ class Simulation:
                     else:
                         target_id += 1
 
-                if target_id == len(self._test_text_data) or num_of_decisions > 1000:
+                if target_id == len(self._test_text_data) or num_of_decisions > 1250:
                     sentence_typed = True
                     data.append([i, self.coding_algorithm, 'TN={}:TP={}'.format(self.noise[0], self.noise[1]),
-                                 num_of_decisions])
-                    data.append([i, self.coding_algorithm, 'no noise', best_num_of_decisions])
+                                 num_of_decisions, num_ones, num_zeros])
+                    data.append([i, self.coding_algorithm, 'no noise', best_num_of_decisions, best_num_ones, best_num_zeros])
         df = pd.DataFrame(data, columns=columns)
         return df
-        # return [max(optimal_result), real_result]
 

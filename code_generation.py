@@ -1,8 +1,6 @@
 import heapq
 import numpy as np
-import copy
 import operator
-import math
 
 class HeapNode:
     def __init__(self, char, freq, cost=None, count=None):
@@ -119,7 +117,6 @@ class WeightedHuffmanCoding(HuffmanCoding):
         node = HeapNode("leaf", 0, count=len(frequency))
         heapq.heappush(self.min_que, node)
         for i in range(len(frequency)-1):
-            nodes = []
             node = heapq.heappop(self.min_que)
             counter = node.count - 1
             node1 = HeapNode("leaf", node.freq + self.left, count=counter)
@@ -175,8 +172,14 @@ class WeightedHuffmanCoding(HuffmanCoding):
         if (root.left.count >= root.right.count) and (root.left.cost >= root.right.cost):
             root.left, root.right = root.right, root.left
 
-        self.make_weighted_codes_helper(root.left, current_code + "0")
-        self.make_weighted_codes_helper(root.right, current_code + "1")
+        if self.left <= self.right:
+            low_cost = '0'
+            high_cost = '1'
+        else:
+            low_cost = '1'
+            high_cost = '0'
+        self.make_weighted_codes_helper(root.left, current_code + low_cost)
+        self.make_weighted_codes_helper(root.right, current_code + high_cost)
 
     def make_weighted_codes(self):
         root = heapq.heappop(self.heap)
@@ -184,14 +187,13 @@ class WeightedHuffmanCoding(HuffmanCoding):
         self.make_weighted_codes_helper(root, current_code)
 
     def create_code(self, frequency):
-        sum_freq = sum(frequency.values())
-        frequency = {k: (frequency[k]/sum_freq) for k in frequency.keys()}
-        self.make_heap(frequency)
-        self.heap = self.merge_nodes(self.heap)
-        self.make_codes()
-        avg = self.determine_avg_length(self.codes, frequency)
-        self.left = math.pow(self.left, avg)
-        self.right = math.pow(self.right, avg)
+        if self.right >= self.left:
+            self.left = self.left / self.right
+            self.right = 1
+        else:
+            self.right = self.right / self.left
+            self.left = 1
+
         frequency = {k: frequency[k] for k in sorted(frequency, key=frequency.get, reverse=True)}
         self.min_que = []
         self.temp = []
@@ -239,60 +241,3 @@ class RowColumn():
         dimensions = [answer, ((number-1)//answer+1)]
         return dimensions
 
-if __name__ == "__main__":
-    frequency = {
-        "A": 55,
-        "B": 32,
-        "C": 21,
-        "D": 12,
-        "E": 17,
-        "F": 23,
-        "G": 26,
-        "H": 18,
-        "I": 25,
-        "J": 9,
-        "K": 14,
-        "L": 7,
-        "M": 45,
-        "N": 47,
-        "O": 8,
-    }
-    # frequency = {
-    #     "E": 0.14878610,
-    #     "T": 0.09354149,
-    #     "A": 0.08833733,
-    #     "O": 0.07245769,
-    #     "R": 0.06872164,
-    #     "N": 0.06498532,
-    #     "H": 0.05831331,
-    #     "I": 0.05644515,
-    #     "S": 0.05537763,
-    #     "D": 0.04376834,
-    #     "L": 0.04123298,
-    #     "U": 0.02762209,
-    #     "P": 0.02575393,
-    #     "F": 0.02455297,
-    #     "M": 0.02361889,
-    #     "C": 0.02081665,
-    #     "W": 0.01868161,
-    #     "G": 0.01521216,
-    #     "Y": 0.01521216,
-    #     "B": 0.01267680,
-    #     "V": 0.01160928,
-    #     "K": 0.00867360,
-    #     "X": 0.00146784,
-    #     "J": 0.00080064,
-    #     "Q": 0.00080064,
-    #     "Z": 0.00053376,
-    # }
-    print(RowColumn.determine_rectangle(30))
-    r = RowColumn()
-    codes = r.create_code(frequency)
-    # h = HuffmanCoding()
-    # codes = h.create_code(frequency)
-    # bla = WeightedHuffmanCoding(0.8, 0.75)
-    # weighted_codes = bla.create_code(frequency)
-    # # vlec = VLECHuffmanCoding()
-    # # vlec_codes = vlec.create_code(frequency)
-    # # test = RowColumn()
-    # # codes2 = test.create_code(frequency)
