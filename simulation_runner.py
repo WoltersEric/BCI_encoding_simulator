@@ -47,11 +47,11 @@ class Runner:
 if __name__ == '__main__':
     algorithms = ["Huffman", "RowColumn", "Weighted", "VLEC"]
     human_error = {'RowColumn': 0.02444444, 'Huffman': 0.03126761, 'VLEC': 0.01882353, 'Weighted': 0.03126761}
+    # if no human error is required, a empty dictionary can be used.
+    interval = 1 # can be used to multiply number of decisions with this variable to determine typing time
     iterations = 1
-    interval = 2.6
-    true_positives = list(np.around(np.arange(0.75, 0.99, 0.025), decimals=3))
-    true_positives = [0.9]
-    true_negatives = list(np.around(np.arange(0.75, 0.99, 0.025), decimals=3))
+    true_positives = list(np.around(np.arange(0.95, 0.99, 0.025), decimals=3))
+    true_negatives = list(np.around(np.arange(0.95, 0.99, 0.025), decimals=3))
     noise = [true_negatives, true_positives]
     Run = Runner(iterations, interval, np.array(noise), algorithms, human_error)
     Run.run_simulation()

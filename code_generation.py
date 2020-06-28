@@ -27,7 +27,6 @@ class HuffmanCoding:
         self.heap = []
         self.codes = {}
         self.reverse_mapping = {}
-    # functions for compression:
 
     def make_heap(self, frequency):
         for key in frequency:
